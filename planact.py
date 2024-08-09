@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 import streamlit as st
 from PIL import Image
@@ -66,6 +67,15 @@ def process_order_book_data(df1):
 # Step 3: Merge and Clean Additional Data
 def merge_additional_data(vpolevel_path, productmapping_path):
     try:
+        # Check if files exist before loading them
+        if not os.path.exists(vpolevel_path):
+            st.error(f"File not found: {vpolevel_path}")
+            return None
+        
+        if not os.path.exists(productmapping_path):
+            st.error(f"File not found: {productmapping_path}")
+            return None
+        
         # Load the pre-defined files
         vpolevel_data1 = pd.read_excel(vpolevel_path)
         productmapping_data1 = pd.read_excel(productmapping_path)
