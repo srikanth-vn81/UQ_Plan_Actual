@@ -3,12 +3,8 @@ import streamlit as st
 from PIL import Image
 import io
 
-# Load the logo image with a transparent background
-try:
-    logo_image = Image.open(r"C:\Users\srikanthve\OneDrive - Brandix Lanka Pvt Ltd\Desktop\logobrandix.jpg")
-    st.sidebar.image(logo_image, use_column_width=False)
-except Exception as e:
-    st.sidebar.error(f"Error loading logo image: {e}")
+# Blank sidebar setup (just to keep the space)
+st.sidebar.empty()
 
 # Custom CSS for a more professional title style
 st.markdown(
