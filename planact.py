@@ -1,12 +1,14 @@
 import pandas as pd
 import streamlit as st
 from PIL import Image
+import io
 
 # Load the logo image with a transparent background
-logo = r"C:\Users\srikanthve\OneDrive - Brandix Lanka Pvt Ltd\Desktop\logobrandix.jpg"
-
-# Set up the sidebar with the logo on top (no resizing)
-st.sidebar.image(logo, use_column_width=False)
+try:
+    logo_image = Image.open(r"C:\Users\srikanthve\OneDrive - Brandix Lanka Pvt Ltd\Desktop\logobrandix.jpg")
+    st.sidebar.image(logo_image, use_column_width=False)
+except Exception as e:
+    st.sidebar.error(f"Error loading logo image: {e}")
 
 # Custom CSS for a more professional title style
 st.markdown(
@@ -67,24 +69,29 @@ def process_order_book_data(df1):
 
 # Step 3: Merge and Clean Additional Data
 def merge_additional_data(vpolevel_path, productmapping_path):
-    # Load the pre-defined files
-    vpolevel_data1 = pd.read_excel(vpolevel_path)
-    productmapping_data1 = pd.read_excel(productmapping_path)
+    try:
+        # Load the pre-defined files
+        vpolevel_data1 = pd.read_excel(vpolevel_path)
+        productmapping_data1 = pd.read_excel(productmapping_path)
+        
+        # Convert 'Sample Code' and 'Style' to string type in both dataframes
+        vpolevel_data1['Sample Code'] = vpolevel_data1['Sample Code'].astype(str)
+        productmapping_data1['Style'] = productmapping_data1['Style'].astype(str)
+        
+        # Merge the two dataframes on 'Sample Code' from vpolevel and 'Style' from productmapping
+        merged_data1 = pd.merge(vpolevel_data1, productmapping_data1, left_on='Sample Code', right_on='Style', how='left')
+        
+        # Remove the "Unnamed: 0" column that came from productmapping file if it exists
+        if 'Unnamed: 0' in merged_data1.columns:
+            merged_data_cleaned1 = merged_data1.drop(columns=['Unnamed: 0'])
+        else:
+            merged_data_cleaned1 = merged_data1
+        
+        return merged_data_cleaned1
     
-    # Convert 'Sample Code' and 'Style' to string type in both dataframes
-    vpolevel_data1['Sample Code'] = vpolevel_data1['Sample Code'].astype(str)
-    productmapping_data1['Style'] = productmapping_data1['Style'].astype(str)
-    
-    # Merge the two dataframes on 'Sample Code' from vpolevel and 'Style' from productmapping
-    merged_data1 = pd.merge(vpolevel_data1, productmapping_data1, left_on='Sample Code', right_on='Style', how='left')
-    
-    # Remove the "Unnamed: 0" column that came from productmapping file if it exists
-    if 'Unnamed: 0' in merged_data1.columns:
-        merged_data_cleaned1 = merged_data1.drop(columns=['Unnamed: 0'])
-    else:
-        merged_data_cleaned1 = merged_data1
-    
-    return merged_data_cleaned1
+    except Exception as e:
+        st.error(f"Error merging additional data: {e}")
+        return None
 
 # Main Application
 
@@ -93,33 +100,38 @@ uploaded_shopfloor_file = st.file_uploader("Choose a Shopfloor data file", type=
 uploaded_order_book_file = st.file_uploader("Choose an Order Book data file", type=["csv", "xlsx"])
 
 if uploaded_shopfloor_file and uploaded_order_book_file:
-    if uploaded_shopfloor_file.name.endswith('.csv'):
-        df_shopfloor = pd.read_csv(uploaded_shopfloor_file)
-    elif uploaded_shopfloor_file.name.endswith('.xlsx'):
-        df_shopfloor = pd.read_excel(uploaded_shopfloor_file)
-    
-    processed_shopfloor_data = process_shopfloor_data(df_shopfloor)
-    
-    if uploaded_order_book_file.name.endswith('.csv'):
-        df_order_book = pd.read_csv(uploaded_order_book_file)
-    elif uploaded_order_book_file.name.endswith('.xlsx'):
-        df_order_book = pd.read_excel(uploaded_order_book_file)
-    
-    processed_order_book_data = process_order_book_data(df_order_book)
-    
-    if processed_order_book_data is not None:
-        # Define the paths to the preloaded files
-        vpolevel_path = r'C:\India Plants\Marketing\Ajay Report\vpolevel1.xlsx'
-        productmapping_path = r'C:\India Plants\Marketing\Ajay Report\productmapping.xlsx'
+    try:
+        if uploaded_shopfloor_file.name.endswith('.csv'):
+            df_shopfloor = pd.read_csv(uploaded_shopfloor_file)
+        elif uploaded_shopfloor_file.name.endswith('.xlsx'):
+            df_shopfloor = pd.read_excel(uploaded_shopfloor_file)
         
-        merged_data_cleaned1 = merge_additional_data(vpolevel_path, productmapping_path)
+        processed_shopfloor_data = process_shopfloor_data(df_shopfloor)
         
-        # Save the cleaned merged dataframe to an Excel file
-        merged_data_cleaned1_output_path = 'uq_planvsactuals1.xlsx'
-        merged_data_cleaned1.to_excel(merged_data_cleaned1_output_path, index=False)
+        if uploaded_order_book_file.name.endswith('.csv'):
+            df_order_book = pd.read_csv(uploaded_order_book_file)
+        elif uploaded_order_book_file.name.endswith('.xlsx'):
+            df_order_book = pd.read_excel(uploaded_order_book_file)
         
-        st.download_button(
-            label="Download Merged Data",
-            data=open(merged_data_cleaned1_output_path, 'rb').read(),
-            file_name="uq_planvsactuals1.xlsx"
-        )
+        processed_order_book_data = process_order_book_data(df_order_book)
+        
+        if processed_order_book_data is not None:
+            # Define the paths to the preloaded files
+            vpolevel_path = r'C:\India Plants\Marketing\Ajay Report\vpolevel1.xlsx'
+            productmapping_path = r'C:\India Plants\Marketing\Ajay Report\productmapping.xlsx'
+            
+            merged_data_cleaned1 = merge_additional_data(vpolevel_path, productmapping_path)
+            
+            if merged_data_cleaned1 is not None:
+                # Convert the cleaned merged dataframe to an Excel file in memory
+                output = io.BytesIO()
+                with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                    merged_data_cleaned1.to_excel(writer, index=False)
+                
+                st.download_button(
+                    label="Download Merged Data",
+                    data=output.getvalue(),
+                    file_name="uq_planvsactuals1.xlsx"
+                )
+    except Exception as e:
+        st.error(f"An error occurred while processing the files: {e}")
